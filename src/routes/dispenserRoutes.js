@@ -12,11 +12,9 @@ router.use(express.json());
 
 router.post("/dispensers", (req, res) => {
   if (!req.body || !req.body.flowVolume) {
-    return res
-      .status(400)
-      .json({
-        error: 'Invalid request. The "flowVolume" property is missing.',
-      });
+    return res.status(400).json({
+      error: 'Invalid request. The "flowVolume" property is missing.',
+    });
   }
   const { flowVolume } = req.body;
   const dispenserId = uuidv4();
@@ -43,7 +41,12 @@ router.put("/dispensers/:dispenserId/status", (req, res) => {
 
   if (status === "open") {
     // Open the tap and record the tap event
-    const tapEvent = { dispenserId, status: "open", start_time: new Date() };
+    const tapEvent = {
+      dispenserId,
+      status: "open",
+      start_time: new Date(),
+      flowVolume: dispenser.flowVolume,
+    };
     tapEvents.push(tapEvent);
 
     res.json({ status: "open", start_time: tapEvent.start_time });
@@ -60,13 +63,21 @@ router.put("/dispensers/:dispenserId/status", (req, res) => {
     // Calculate revenue based on the time the tap was open
     const endTime = new Date();
     const durationInSeconds = (endTime - openTapEvent.start_time) / 1000;
-    const revenue = (dispenser.flowVolume * durationInSeconds).toFixed(2);
+    const totalSpent = (
+      openTapEvent.flowVolume *
+      durationInSeconds *
+      12.25
+    ).toFixed(2);
 
     // Record the tap event as closed
     openTapEvent.status = "closed";
     openTapEvent.end_time = endTime;
 
-    res.json({ status: "closed", end_time: openTapEvent.end_time, revenue });
+    res.json({
+      status: "closed",
+      end_time: openTapEvent.end_time,
+      revenue: totalSpent,
+    });
   }
 });
 
