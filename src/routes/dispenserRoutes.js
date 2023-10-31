@@ -22,7 +22,7 @@ router.post("/dispensers", (req, res) => {
   res.json({ dispenser_id: dispenserId });
 });
 
-router.put("/dispensers/:dispenserId/tap", (req, res) => {
+router.put("/dispensers/:dispenserId/status", (req, res) => {
   const { dispenserId } = req.params;
   const dispenser = dispensers.find((d) => d.id === dispenserId);
 
