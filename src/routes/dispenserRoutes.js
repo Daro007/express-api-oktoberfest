@@ -3,8 +3,7 @@ const router = express.Router();
 
 const { v4: uuidv4 } = require("uuid");
 
-
-// In-memory data storage for dispensers and tap events 
+// In-memory data storage for dispensers and tap events
 // TODO: (replace with a database). Possibly MongoDB Atlas or Firestore from Firebase
 const dispensers = [];
 const tapEvents = [];
@@ -13,10 +12,14 @@ router.use(express.json());
 
 router.post("/dispensers", (req, res) => {
   if (!req.body || !req.body.flowVolume) {
-    return res.status(400).json({ error: 'Invalid request. The "flowVolume" property is missing.' });
+    return res
+      .status(400)
+      .json({
+        error: 'Invalid request. The "flowVolume" property is missing.',
+      });
   }
   const { flowVolume } = req.body;
-  const dispenserId = uuidv4(); 
+  const dispenserId = uuidv4();
   const dispenser = { id: dispenserId, flowVolume };
   dispensers.push(dispenser);
   res.json({ dispenser_id: dispenserId });
@@ -67,34 +70,62 @@ router.put("/dispensers/:dispenserId/status", (req, res) => {
   }
 });
 
-router.get('/dispensers/summary', (req, res) => {
-    const dispenserSummary = dispensers.map((dispenser) => {
-      const usageCount = tapEvents.reduce((count, event) => {
-        if (event.dispenserId === dispenser.id && event.status === 'closed') {
-          return count + 1;
-        }
-        return count;
-      }, 0);
+// Route to get the money spent by a specific dispenser, breaking down by uses
+router.get("/dispensers/:id/spending", (req, res) => {
+  const dispenserId = req.params.id;
 
-      const totalDuration = tapEvents.reduce((total, event) => {
-        if (event.dispenserId === dispenser.id && event.status === 'closed') {
-          return total + (event.end_time - event.start_time);
-        }
-        return total;
-      }, 0);
+  const dispenser = dispensers.find(
+    (dispenser) => dispenser.id === dispenserId
+  );
 
-      const revenue = (dispenser.flowVolume * (totalDuration / 1000)).toFixed(2);
+  if (!dispenser) {
+    return res.status(404).json({ error: "Dispenser not found" });
+  }
 
-      return {
-        dispenser_id: dispenser.id,
-        usage_count: usageCount,
-        total_duration: `${(totalDuration / 1000).toFixed(2)} seconds`,
-        total_revenue: `$${revenue}`,
-      };
+  // Calculate spending for each use, including open taps
+  const spendingDetails = tapEvents
+    .filter((event) => event.dispenserId === dispenserId)
+    .map((event) => {
+      const openedAt = event.start_time;
+      const closedAt = event.end_time;
+      const flowVolume = event.flowVolume;
+
+      if (openedAt) {
+        const endTime = closedAt || new Date();
+        const durationInSeconds = (endTime - openedAt) / 1000;
+        const totalSpent = (flowVolume * durationInSeconds * 12.25).toFixed(2);
+
+        return {
+          opened_at: openedAt.toISOString(),
+          closed_at: closedAt ? closedAt.toISOString() : null,
+          flow_volume: flowVolume,
+          total_spent: `$${totalSpent}`,
+        };
+      } else {
+        return {
+          opened_at: null,
+          closed_at: null,
+          flow_volume: flowVolume,
+          total_spent: "$0.00",
+        };
+      }
     });
 
-    res.json(dispenserSummary);
-  });
+  const totalAmount = parseFloat(
+    spendingDetails
+      .reduce(
+        (total, use) => total + parseFloat(use.total_spent.replace("$", "")),
+        0
+      )
+      .toFixed(2)
+  );
 
+  const response = {
+    amount: `$${totalAmount}`,
+    usages: spendingDetails,
+  };
+
+  res.json(response);
+});
 
 module.exports = router;
