@@ -10,6 +10,44 @@ const tapEvents = [];
 
 router.use(express.json());
 
+/**
+ * @swagger
+ * tags:
+ *   name: Dispensers
+ *   description: Dispenser management
+ */
+
+/**
+ * @swagger
+ * /dispensers:
+ *   post:
+ *     summary: Create a new dispenser
+ *     tags: [Dispensers]
+ *     requestBody:
+ *       description: Data for creating a new dispenser
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               flowVolume:
+ *                 type: number
+ *             required:
+ *               - flowVolume
+ *     responses:
+ *       '200':
+ *         description: Dispenser created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 dispenser_id:
+ *                   type: string
+ *       '400':
+ *         description: Invalid request
+ */
 router.post("/dispensers", (req, res) => {
   if (!req.body || !req.body.flowVolume) {
     return res.status(400).json({
@@ -23,6 +61,46 @@ router.post("/dispensers", (req, res) => {
   res.json({ dispenser_id: dispenserId });
 });
 
+/**
+ * @swagger
+ * /dispensers/{dispenserId}/status:
+ *   put:
+ *     summary: Update the tap status of a dispenser
+ *     tags: [Dispensers]
+ *     parameters:
+ *       - in: path
+ *         name: dispenserId
+ *         required: true
+ *         description: The ID of the dispenser
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [open, close]
+ *     responses:
+ *       '200':
+ *         description: Tap status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 start_time:
+ *                   type: string
+ *       '400':
+ *         description: Invalid request
+ *       '404':
+ *         description: Dispenser not found
+ */
 router.put("/dispensers/:dispenserId/status", (req, res) => {
   const { dispenserId } = req.params;
   const dispenser = dispensers.find((d) => d.id === dispenserId);
@@ -81,7 +159,51 @@ router.put("/dispensers/:dispenserId/status", (req, res) => {
   }
 });
 
-// Route to get the money spent by a specific dispenser, breaking down by uses
+/**
+ * @swagger
+ * /dispensers/{id}/spending:
+ *   get:
+ *     summary: Get dispenser spending details
+ *     tags: [Dispensers]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: The ID of the dispenser
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: Dispenser spending details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 amount:
+ *                   type: string
+ *                   description: The total amount spent by the dispenser
+ *                 usages:
+ *                   type: array
+ *                   description: List of dispenser usage details
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       opened_at:
+ *                         type: string
+ *                         description: Date and time when the tap was opened
+ *                       closed_at:
+ *                         type: string
+ *                         description: Date and time when the tap was closed (null if not closed)
+ *                       flow_volume:
+ *                         type: number
+ *                         description: Flow volume during the usage
+ *                       total_spent:
+ *                         type: string
+ *                         description: Total amount spent during the usage
+ *       '404':
+ *         description: Dispenser not found
+ */
 router.get("/dispensers/:id/spending", (req, res) => {
   const dispenserId = req.params.id;
 
